@@ -2,7 +2,6 @@
 
 import arviz as az
 import pymc as pm
-import numpy as np
 
 
 def assert_converged(idata: az.InferenceData, rhat_tol: float = 1.05, ess_tol: float = 100) -> None:

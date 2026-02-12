@@ -16,13 +16,9 @@ with app.setup:
 @app.cell
 def _():
     import xarray as xr
-    import arviz_stats as azs
     import altair as alt
     import numpy as np
-    import pymc as pm
     from scipy.special import expit
-    import pandas as pd
-    from arviz_base import load_arviz_data
     import marimo as mo
 
     import arviz_plots as azp

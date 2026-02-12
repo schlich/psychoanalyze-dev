@@ -1,0 +1,199 @@
+---
+name: Release Progress Tracker
+
+"on":
+  issues:
+    types:
+      - opened
+      - closed
+      - reopened
+      - labeled
+      - unlabeled
+      - milestoned
+      - demilestoned
+  pull_request:
+    types:
+      - opened
+      - closed
+      - reopened
+      - labeled
+      - unlabeled
+  workflow_dispatch:
+  schedule:
+    # Run daily at 00:00 UTC
+    - cron: '0 0 * * *'
+
+permissions:
+  contents: write
+  issues: write
+  pull-requests: read
+
+jobs:
+  update-progress:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Get milestone progress
+        id: progress
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const owner = context.repo.owner;
+            const repo = context.repo.repo;
+
+            // Get all open milestones
+            const { data: milestones } =
+              await github.rest.issues.listMilestones({
+                owner,
+                repo,
+                state: 'open',
+                sort: 'due_on',
+                direction: 'asc'
+              });
+
+            if (milestones.length === 0) {
+              core.setOutput('has_milestones', 'false');
+              return;
+            }
+
+            core.setOutput('has_milestones', 'true');
+
+            let progressReport = '# Release Progress Tracker\n\n';
+            progressReport +=
+              `_Last updated: ${new Date().toUTCString()}_\n\n`;
+            progressReport += '## Milestones\n\n';
+
+            for (const milestone of milestones) {
+              const total = milestone.open_issues + milestone.closed_issues;
+              const completed = milestone.closed_issues;
+              const percentage = total > 0 ?
+                Math.round((completed / total) * 100) : 0;
+
+              // Create progress bar (20 blocks)
+              const blocks = 20;
+              const filled = Math.round((percentage / 100) * blocks);
+              const progressBar = '█'.repeat(filled) +
+                '░'.repeat(blocks - filled);
+
+              progressReport += `### ${milestone.title}\n\n`;
+
+              if (milestone.description) {
+                progressReport += `${milestone.description}\n\n`;
+              }
+
+              if (milestone.due_on) {
+                const dueDate = new Date(milestone.due_on);
+                progressReport +=
+                  `**Due:** ${dueDate.toDateString()}\n\n`;
+              }
+
+              progressReport +=
+                `**Progress:** ${percentage}% ` +
+                `(${completed}/${total} issues completed)\n\n`;
+              progressReport +=
+                `\`${progressBar}\` ${percentage}%\n\n`;
+
+              // Get issues for this milestone
+              const { data: issues } =
+                await github.rest.issues.listForRepo({
+                  owner,
+                  repo,
+                  milestone: milestone.number,
+                  state: 'all',
+                  per_page: 100
+                });
+
+              // Separate open and closed issues
+              const openIssues = issues.filter(i =>
+                i.state === 'open' && !i.pull_request);
+              const closedIssues = issues.filter(i =>
+                i.state === 'closed' && !i.pull_request);
+              const openPRs = issues.filter(i =>
+                i.state === 'open' && i.pull_request);
+              const closedPRs = issues.filter(i =>
+                i.state === 'closed' && i.pull_request);
+
+              // List open items
+              if (openIssues.length > 0) {
+                progressReport +=
+                  `#### Open Issues (${openIssues.length})\n\n`;
+                for (const issue of openIssues) {
+                  const labels = issue.labels.map(l =>
+                    `\`${l.name}\``).join(' ');
+                  progressReport +=
+                    `- [ ] [#${issue.number}](${issue.html_url}) ` +
+                    `${issue.title} ${labels}\n`;
+                }
+                progressReport += '\n';
+              }
+
+              if (openPRs.length > 0) {
+                progressReport +=
+                  `#### Open Pull Requests (${openPRs.length})\n\n`;
+                for (const pr of openPRs) {
+                  const labels = pr.labels.map(l =>
+                    `\`${l.name}\``).join(' ');
+                  progressReport +=
+                    `- [ ] [#${pr.number}](${pr.html_url}) ` +
+                    `${pr.title} ${labels}\n`;
+                }
+                progressReport += '\n';
+              }
+
+              // List recently completed items (last 10)
+              if (closedIssues.length > 0) {
+                const recentClosed = closedIssues.slice(0, 10);
+                progressReport +=
+                  `#### Recently Completed Issues ` +
+                  `(showing ${recentClosed.length} of ` +
+                  `${closedIssues.length})\n\n`;
+                for (const issue of recentClosed) {
+                  const labels = issue.labels.map(l =>
+                    `\`${l.name}\``).join(' ');
+                  progressReport +=
+                    `- [x] [#${issue.number}](${issue.html_url}) ` +
+                    `${issue.title} ${labels}\n`;
+                }
+                progressReport += '\n';
+              }
+
+              if (closedPRs.length > 0) {
+                const recentClosed = closedPRs.slice(0, 10);
+                progressReport +=
+                  `#### Recently Merged Pull Requests ` +
+                  `(showing ${recentClosed.length} of ` +
+                  `${closedPRs.length})\n\n`;
+                for (const pr of recentClosed) {
+                  const labels = pr.labels.map(l =>
+                    `\`${l.name}\``).join(' ');
+                  progressReport +=
+                    `- [x] [#${pr.number}](${pr.html_url}) ` +
+                    `${pr.title} ${labels}\n`;
+                }
+                progressReport += '\n';
+              }
+
+              progressReport += '---\n\n';
+            }
+
+            // Write to file
+            const fs = require('fs');
+            fs.writeFileSync('RELEASE_PROGRESS.md', progressReport);
+
+            return progressReport;
+
+      - name: Commit and push if changed
+        if: steps.progress.outputs.has_milestones == 'true'
+        run: |
+          git config --global user.name 'github-actions[bot]'
+          git config --global user.email \
+            'github-actions[bot]@users.noreply.github.com'
+          git add RELEASE_PROGRESS.md
+          if git diff --staged --quiet; then
+            echo "No changes to commit"
+          else
+            git commit -m "chore: update release progress tracker"
+            git push
+          fi

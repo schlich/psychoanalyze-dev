@@ -3,13 +3,44 @@ name: Deploy
 on:
   push:
     branches: [main]
+  pull_request:
+    branches: [main]
   workflow_dispatch:
 
 concurrency:
-  group: pages
-  cancel-in-progress: false
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup uv
+        uses: astral-sh/setup-uv@v5
+
+      - name: Install dependencies
+        run: uv sync --all-extras --dev
+
+      - name: Lint
+        run: |
+          uv run ruff check
+          uv run ruff format --check
+
+      - name: Type check
+        run: uv run ty check
+
+      - name: Data Contract Lint
+        run: uv run datacontract lint data-contract.odcs.yaml
+
+      - name: Marimo Check
+        run: uv run --with marimo marimo check nbs/*.py
+
+      - name: Test
+        run: uv run --with pymc pytest
+
   build:
     runs-on: ubuntu-latest
     steps:
@@ -30,7 +61,11 @@ jobs:
           path: site
 
   deploy:
-    needs: build
+    needs: [build, check]
+    if: github.ref == 'refs/heads/main'
+    concurrency:
+      group: pages
+      cancel-in-progress: false
     runs-on: ubuntu-latest
     environment:
       name: github-pages

@@ -13,7 +13,7 @@ class TestPsychometricFunction:
             }
         )
 
-        fig = psi.plot(points=points)
+        fig = psi.plot(points)
         assert fig.layout.yaxis.title.text == "hit_rate"
         assert fig.layout.xaxis.title.text == "magnitude"
 
@@ -48,7 +48,11 @@ class TestDataGenerationSimulation:
         assert prior.sizes.get("draw", 0) > 0
         assert len(prior.data_vars) > 0
         # Prior predictive group may be present or folded into prior depending on PyMC version
-        assert "prior_predictive" in idata.groups() or "obs" in prior.data_vars
+        assert (
+            "prior_predictive" in idata.groups()
+            or "obs" in prior.data_vars
+            or "y" in prior.data_vars
+        )
 
     def test_run_prior_predictive_with_specified_draws(self) -> None:
         """Run prior predictive sampling with a specified number of draws."""

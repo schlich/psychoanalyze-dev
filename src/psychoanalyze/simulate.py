@@ -19,11 +19,14 @@ class LogisticPrior:
 
 def run_prior_predictive(
     n_blocks: int = 1,
-    n_trials_per_block: int | None = None,
+    n_trials_per_block: int | None = 100,
     logistic_prior: LogisticPrior = LogisticPrior(
         x0=NormalParams(mu=0, sigma=0.5), k_sigma=2.0
     ),
+    draws: int = 500,
+    random_seed: int | None = None,
 ) -> pm.backends.arviz.InferenceData:
+    n_trials_per_block = n_trials_per_block or 100
     n_trials = n_blocks * n_trials_per_block
 
     level_grid = (np.arange(-3, 4) * logistic_prior.x0.sigma) + logistic_prior.x0.mu
@@ -63,5 +66,5 @@ def run_prior_predictive(
         )
         pm.Bernoulli("y", p=p, dims="trial")
 
-        idata = pm.sample_prior_predictive()
+        idata = pm.sample_prior_predictive(draws=draws, random_seed=random_seed)
     return idata

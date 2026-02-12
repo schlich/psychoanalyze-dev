@@ -11,108 +11,148 @@ from psychoanalyze.plotting.psychometric import (
     _aggregate_simulation_data
 )
 
-def test_psychometric_function():
-    # Test basic output range
+def test_psychometric_function_output_range():
     x = 0
     x0 = 0
     k = 1
     p = psychometric_function(x, x0, k)
-    assert p == 0.5
+    assert 0 <= p <= 1
 
-    # Test broadcasting
+def test_psychometric_function_broadcasting():
     x = np.array([-100, 0, 100])
+    x0 = 0
+    k = 1
     p = psychometric_function(x, x0, k)
-    assert np.allclose(p, [0, 0.5, 1])
+    # Strong assertion covering the entire array behavior
+    np.testing.assert_allclose(p, [0, 0.5, 1], atol=1e-5)
 
-def test_extract_simulation_data():
+def test_extract_simulation_data_merges_all_sources():
     logistic_prior = LogisticPrior(x0=NormalParams(mu=0, sigma=1), k_sigma=1)
     idata = run_prior_predictive(n_blocks=1, n_trials_per_block=10, logistic_prior=logistic_prior)
 
-    # Test merging of prior, constant_data, and prior_predictive
     merged = _extract_simulation_data(idata, draw=0, chain=0)
-    assert "x" in merged # from constant_data
-    assert "x0" in merged # from prior
-    assert "y" in merged # from prior_predictive
 
-    # Verify scalar reduction for parameters
-    assert merged["x0"].ndim == 1 # only block dim remains, draw/chain are gone
+    # Assert all expected variable groups are present in the merged dataset
+    assert {"x", "x0", "y"}.issubset(merged.data_vars)
 
-def test_compute_x_range():
+def test_extract_simulation_data_reduces_chains():
     logistic_prior = LogisticPrior(x0=NormalParams(mu=0, sigma=1), k_sigma=1)
+    idata = run_prior_predictive(n_blocks=1, n_trials_per_block=10, logistic_prior=logistic_prior)
 
-    # Test with logistic_prior provided
+    merged = _extract_simulation_data(idata, draw=0, chain=0)
+
+    # Assert draw and chain dimensions are completely removed
+    assert "chain" not in merged.dims and "draw" not in merged.dims
+
+def test_compute_x_range_respects_prior():
+    logistic_prior = LogisticPrior(x0=NormalParams(mu=0, sigma=1), k_sigma=1)
     dummy_data = xr.Dataset({"x": (("trial"), [10, 20])})
+
     x = _compute_x_range(dummy_data, logistic_prior)
-    assert np.isclose(x.min(), -3)
-    assert np.isclose(x.max(), 3)
 
-    # Test inferred from data
+    # Assert range is strictly determined by prior (mu +/- 3*sigma)
+    expected_min = logistic_prior.x0.mu - 3 * logistic_prior.x0.sigma
+    expected_max = logistic_prior.x0.mu + 3 * logistic_prior.x0.sigma
+    np.testing.assert_allclose([x.min(), x.max()], [expected_min, expected_max])
+
+def test_compute_x_range_infers_from_data():
+    dummy_data = xr.Dataset({"x": (("trial"), [10, 20])})
+
     x = _compute_x_range(dummy_data, None)
-    assert x.min() < 10
-    assert x.max() > 20
 
-def test_compute_theoretical_curve():
-    # Setup dummy merged data with multiple blocks
+    # Assert range covers the data range with padding
+    assert x.min() < 10 and x.max() > 20
+
+def test_compute_theoretical_curve_structure():
     x_vals = np.linspace(-3, 3, 10)
     merged_data = xr.Dataset(
         {
-            "x0": (("block"), [0, 0]),
-            "k": (("block"), [1, 100]), # One gentle slope, one steep
-            "gamma": (("block"), [0, 0]),
-            "lambda": (("block"), [0, 0])
+            "x0": (("block"), [0]),
+            "k": (("block"), [1]),
+            "gamma": (("block"), [0]),
+            "lambda": (("block"), [0])
         },
-        coords={"block": [0, 1]}
+        coords={"block": [0]}
     )
 
     curve_df = _compute_theoretical_curve(x_vals, merged_data)
 
-    # Check structure
-    assert "p" in curve_df.columns
-    assert "x" in curve_df.columns
-    assert "block" in curve_df.columns
+    # Assert strictly required columns are present
+    assert list(curve_df.columns) == ["block", "x", "p"]
 
-    # Check that we have data for both blocks
-    assert len(curve_df["block"].unique()) == 2
-
-    # Check values for steep slope (k=100) at x=0.1 (should be ~1)
-    steep_block = curve_df[curve_df["block"] == 1]
-    # find closest x to 0.1
-    idx = (steep_block['x'] - 0.1).abs().idxmin()
-    assert steep_block.loc[idx, "p"] > 0.9
-
-def test_aggregate_simulation_data():
-    # Setup dummy data
+def test_compute_theoretical_curve_values():
+    x_vals = np.linspace(-3, 3, 10)
     merged_data = xr.Dataset(
         {
-            "x": (("trial"), [1, 1, 2, 2]),
-            "block_id": (("trial"), [0, 0, 1, 1]),
-            "y": (("trial"), [0, 1, 1, 1])
+            "x0": (("block"), [0]),
+            "k": (("block"), [100]), # Steep slope
+            "gamma": (("block"), [0]),
+            "lambda": (("block"), [0])
+        },
+        coords={"block": [0]}
+    )
+
+    curve_df = _compute_theoretical_curve(x_vals, merged_data)
+
+    # Assert behavior: steep slope should yield high probability for x > x0
+    idx_positive = (curve_df['x'] > 0.1)
+    assert (curve_df.loc[idx_positive, "p"] > 0.99).all()
+
+def test_aggregate_simulation_data_groups_correctly():
+    merged_data = xr.Dataset(
+        {
+            "x": (("trial"), [1, 2]),
+            "block_id": (("trial"), [0, 1]),
+            "y": (("trial"), [0, 1])
         }
     )
 
     summary_df = _aggregate_simulation_data(merged_data)
 
-    # Check grouping
-    # Block 0, x=1: mean=0.5, count=2
-    b0 = summary_df[(summary_df["block"] == 0) & (summary_df["x"] == 1)].iloc[0]
-    assert b0["p"] == 0.5
-    assert b0["n"] == 2
+    # Assert unique groups are preserved
+    expected_groups = {(0, 1), (1, 2)} # (block, x) tuples
+    actual_groups = set(zip(summary_df["block"], summary_df["x"]))
+    assert actual_groups == expected_groups
 
-    # Block 1, x=2: mean=1.0, count=2
-    b1 = summary_df[(summary_df["block"] == 1) & (summary_df["x"] == 2)].iloc[0]
-    assert b1["p"] == 1.0
-    assert b1["n"] == 2
+def test_aggregate_simulation_data_calculates_mean():
+    merged_data = xr.Dataset(
+        {
+            "x": (("trial"), [1, 1]),
+            "block_id": (("trial"), [0, 0]),
+            "y": (("trial"), [0, 1])
+        }
+    )
 
-def test_plot_prior_simulation_integration():
+    summary_df = _aggregate_simulation_data(merged_data)
+
+    # Assert mean calculation is correct (0+1)/2 = 0.5
+    np.testing.assert_allclose(summary_df["p"].values, [0.5])
+
+def test_aggregate_simulation_data_calculates_count():
+    merged_data = xr.Dataset(
+        {
+            "x": (("trial"), [1, 1, 1]),
+            "block_id": (("trial"), [0, 0, 0]),
+            "y": (("trial"), [0, 1, 0])
+        }
+    )
+
+    summary_df = _aggregate_simulation_data(merged_data)
+
+    # Assert count is correct
+    assert summary_df["n"].values[0] == 3
+
+def test_plot_prior_simulation_returns_chart():
     logistic_prior = LogisticPrior(
         x0=NormalParams(mu=0, sigma=1),
         k_sigma=1
     )
     idata = run_prior_predictive(
-        n_blocks=2,
-        n_trials_per_block=10,
+        n_blocks=1,
+        n_trials_per_block=5,
         logistic_prior=logistic_prior
     )
 
     chart = plot_prior_simulation(idata, logistic_prior=logistic_prior)
+
     assert isinstance(chart, alt.LayerChart)

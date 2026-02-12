@@ -118,28 +118,3 @@ enable_ruff = true # Linting with ruff (enabled by default, if installed)
 
 [tool.marimo.diagnostics]
 enabled = true # Show diagnostics in the editor
-
-[tool.pixi.workspace]
-channels = ["conda-forge"]
-platforms = ["linux-64"]
-
-[tool.pixi.pypi-dependencies]
-psychoanalyze = { path = ".", editable = true }
-
-[tool.pixi.environments]
-default = { solve-group = "default" }
-dev = { features = ["dev"], solve-group = "default" }
-docs = { features = ["docs"], solve-group = "default" }
-
-[tool.pixi.tasks]
-
-[tool.pixi.dependencies]
-pymc = ">=5.27.1,<6"
-marimo = ">=0.19.8,<0.20"
-mcp = ">=1.26.0,<2"
-openai = ">=2.20.0,<3"
-pydantic-ai-slim = ">=1.58.0,<2"
-arviz-base = ">=0.8.2,<0.9"
-arviz-stats = ">=0.8.0,<0.9"
-arviz-plots = ">=0.8.0,<0.9"
-ruff = ">=0.15.0,<0.16"

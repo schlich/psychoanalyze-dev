@@ -61,9 +61,7 @@ def run_prior_predictive(
         lam = pm.Beta("lambda", alpha=1, beta=9, dims="block")
 
         logit_p = pm.invlogit(k[block_id] * (intensity - x0[block_id]))
-        p = gamma[block_id] + (
-            (1 - gamma[block_id] - lam[block_id]) * logit_p
-        )
+        p = gamma[block_id] + ((1 - gamma[block_id] - lam[block_id]) * logit_p)
         pm.Bernoulli("y", p=p, dims="trial")
 
         idata = pm.sample_prior_predictive(draws=draws, random_seed=random_seed)

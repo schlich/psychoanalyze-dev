@@ -67,6 +67,9 @@ class TestDataGenerationSimulation:
         k = idata["prior"]["k"].values
         assert np.all(np.isfinite(x0))
         assert np.all(k > 0)
-        if "prior_predictive" in idata.groups() and "obs" in idata["prior_predictive"].data_vars:
+        if (
+            "prior_predictive" in idata.groups()
+            and "obs" in idata["prior_predictive"].data_vars
+        ):
             obs = idata["prior_predictive"]["obs"].values
             assert np.all((obs >= 0) & (obs <= 1))

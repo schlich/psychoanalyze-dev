@@ -28,7 +28,6 @@ theme:
     - content.action.edit
     - content.code.copy
     - announce.dismiss
-  custom_dir: docs/overrides
 plugins:
 - search
 - mkdocstrings:
@@ -88,11 +87,5 @@ nav:
     - Architecture Diagrams: 'architecture-diagrams/index.md'
   - API Reference:
     - Psychoanalyze: 'api.md'
-extra_javascript:
-  - javascripts/katex.js
-  - https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.7/katex.min.js
-  - https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.7/contrib/auto-render.min.js
-extra_css:
-  - https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.7/katex.min.css
 extra:
   homepage: https://psychoanalyze.io

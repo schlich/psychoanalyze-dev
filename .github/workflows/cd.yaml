@@ -14,20 +14,20 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@v4
 
       - name: Setup uv
-        uses: astral-sh/setup-uv@v7
+        uses: astral-sh/setup-uv@v5
 
-      - name: Export marimo app (HTML/WASM)
+      - name: Build MkDocs
         run: |
-          uv run marimo export html-wasm app.py -o _site
-          echo "# Prevent Jekyll processing" > _site/.nojekyll
+          uv run --group docs mkdocs build
+          echo "# Prevent Jekyll processing" > site/.nojekyll
 
       - name: Upload Pages artifact
-        uses: actions/upload-pages-artifact@v4
+        uses: actions/upload-pages-artifact@v3
         with:
-          path: _site
+          path: site
 
   deploy:
     needs: build

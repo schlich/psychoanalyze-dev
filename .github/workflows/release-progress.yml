@@ -16,10 +16,12 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - name: Setup uv
+        uses: astral-sh/setup-uv@v5
       - name: Update progress
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: python3 .github/scripts/update_progress.py
+        run: uv run .github/scripts/update_progress.py
       - name: Commit changes
         run: |
           git config user.name "github-actions[bot]"

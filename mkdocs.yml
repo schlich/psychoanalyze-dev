@@ -79,6 +79,7 @@ nav:
       - Environment: 'environment.md'
       - API Reference: 'api.md'
       - Testing Reference: 'tests.md'
+      - Release Progress: 'release-progress.md'
   - API Reference:
     - Psychoanalyze: 'api.md'
     - Testing Reference: 'tests.md'

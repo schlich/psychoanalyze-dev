@@ -14,6 +14,8 @@ Here are 3 ways you can
 
 Eager to contribute but not sure where to start? Check out our [roadmap](https://github.com/orgs/psychoanalyze/projects/2) to see what we have planned!
 
+You can also view our [Release Progress Tracker](release-progress.md) to see what issues are being worked on for upcoming releases.
+
 ## Feature Requests
 
 PsychoAnalyze aims to be community-driven software. If you would like to use PsychoAnalyze in your own research context, please let us know what features you need to make that possible. Examine our roadmap to see what we already have planned, and open an issue using the "Feature Request" template to let us know what you need.

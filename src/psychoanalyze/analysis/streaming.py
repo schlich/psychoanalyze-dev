@@ -35,7 +35,7 @@ def initialize(config: StreamingConfig) -> StreamingState:
             ess_history=[float(config.n_particles)],
         )
 
-    # Variational inference initialisation
+    # Variational inference initialization
     return StreamingState(
         method=config.method,
         step=0,
@@ -103,7 +103,7 @@ def _smc_update(
     ll = _log_likelihood(intensity, response, state.particles)
     new_log_weights = state.log_weights + ll
 
-    # Normalise and compute ESS
+    # Normalize and compute ESS
     shifted = new_log_weights - np.max(new_log_weights)
     weights = np.exp(shifted)
     weights /= weights.sum()
@@ -149,7 +149,7 @@ def _vi_update(
     response: int,
     config: StreamingConfig,
 ) -> StreamingState:
-    """Online natural-gradient variational Bayes update (Gaussian approx).
+    """Online natural-gradient variational Bayes update (Gaussian approximation).
 
     Uses a single-step stochastic natural gradient to update the
     mean-field Gaussian approximation q(threshold, slope).
@@ -164,7 +164,7 @@ def _vi_update(
 
     n_samples = 8
     eps = rng.standard_normal((n_samples, 2))
-    samples = means + stds * eps  # reparameterisation trick
+    samples = means + stds * eps  # reparameterization trick
     samples[:, 1] = np.abs(samples[:, 1])
 
     ll = np.array(

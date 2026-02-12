@@ -1,5 +1,5 @@
 Feature: Streaming Bayesian Updates
-  As a researcher analysing psychophysical data
+  As a researcher analyzing psychophysical data
   I want to update posterior estimates incrementally as trials arrive
   So that I can monitor threshold estimation in real time
 

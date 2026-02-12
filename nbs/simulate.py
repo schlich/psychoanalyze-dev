@@ -26,8 +26,9 @@ def _():
     import marimo as mo
 
     import arviz_plots as azp
+    from psychoanalyze.plotting.psychometric import plot_prior_simulation
 
-    return alt, azp, expit, mo, np, xr
+    return alt, azp, expit, mo, np, plot_prior_simulation, xr
 
 
 @app.cell
@@ -64,54 +65,8 @@ def _(logistic_prior, n_blocks, n_trials_per_block):
 
 
 @app.cell
-def _(prior_samples):
-    merged = prior_samples.prior.sel(draw=0, chain=0).merge(prior_samples.constant_data)
-    return (merged,)
-
-
-@app.cell
-def _(logistic_prior, np, xr):
-    x = (np.linspace(-3, 3) * logistic_prior.x0.sigma) + logistic_prior.x0.mu
-    x_da = xr.DataArray(
-        x,
-        coords={"x": x},
-    )
-    return (x_da,)
-
-
-@app.cell
-def _(expit, merged, x_da):
-    y = merged.gamma + (1 - merged.gamma - merged["lambda"]) * expit(
-        merged.k * (x_da - merged["x0"])
-    )
-    return (y,)
-
-
-@app.cell
-def _(alt, merged, xr, y):
-    fit_line = (
-        alt.Chart(y.to_dataframe(name="p").reset_index())
-        .mark_line()
-        .encode(x="x", y="p", color="block:N")
-    )
-    _sample_data_grouped = merged.groupby(["x", "block_id"])
-    data_points = (
-        alt.Chart(
-            xr.Dataset(
-                {
-                    "p": _sample_data_grouped.mean()["y"],
-                    "n": _sample_data_grouped.count()["y"],
-                }
-            )
-            .to_dataframe()
-            .reset_index()
-            .rename(columns={"block_id": "block"})
-        )
-        .mark_point()
-        .encode(x="x", y="p", size="n", color=alt.Color("block:N", title="block"))
-    )
-
-    fit_line + data_points
+def _(logistic_prior, plot_prior_simulation, prior_samples):
+    plot_prior_simulation(prior_samples, logistic_prior=logistic_prior)
     return
 
 

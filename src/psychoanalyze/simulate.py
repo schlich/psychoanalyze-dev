@@ -3,6 +3,7 @@ from dataclasses import dataclass
 import numpy as np
 import pymc as pm
 import xarray as xr
+from scipy.special import expit
 
 
 @dataclass
@@ -15,6 +16,10 @@ class NormalParams:
 class LogisticPrior:
     x0: NormalParams
     k_sigma: float
+
+
+def psychometric_function(x, x0, k, gamma=0, lam=0):
+    return gamma + (1 - gamma - lam) * expit(k * (x - x0))
 
 
 def run_prior_predictive(
